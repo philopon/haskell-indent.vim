@@ -24,6 +24,24 @@ function! s:search_back(regex, lnum)
   return [l:tmp_lnum, l:tmp_line]
 endfunction
 
+function! s:in_do_notation(lnum)
+  return s:search_back('\<do\>', a:lnum - 1)[0] >= 0
+endfunction
+
+function! s:in_where(lnum)
+  let [l:lnum_cr, l:line_cr] = s:search_back('\<where\>\s*$', a:lnum - 1)
+  echo getline(nextnonblank(l:lnum_cr + 1))
+  if l:lnum_cr >= 0
+    return match(getline(nextnonblank(l:lnum_cr + 1)), '\S')
+  else
+    let [l:lnum, l:line] = s:search_back('\<where\>\s*\S\+', a:lnum)
+    if l:lnum >= 0
+      return match(l:line, '\S', match(l:line, '\<where\>') + 5)
+    else 
+      return -1
+    endif
+  endif
+endfunction
 
 function! s:debug_print(num)
   " echo 'Rule ' . a:num
@@ -39,6 +57,10 @@ function! haskellindent#indentexpr(lnum)
   if l:line =~# '^\s*,'
     call s:debug_print('comma')
     return match(l:prev, '{\|,\|\[')
+
+  elseif l:line =~# '^\s*)'
+    call s:debug_print('close )')
+    return match(s:search_back('(', a:lnum -1)[1], '(')
 
   elseif l:line =~# '\<in\>'
     call s:debug_print('in')
@@ -65,7 +87,7 @@ function! haskellindent#indentexpr(lnum)
     endif
 
     let l:ifpos = match(l:ifline, '\<if\>')
-    if s:search_back('\<do\>', a:lnum - 1)[0] >= 0
+    if s:in_do_notation(a:lnum)
       return l:ifpos + &shiftwidth / 2
     else 
       return l:ifpos
@@ -80,15 +102,28 @@ function! haskellindent#indentexpr(lnum)
     return match(l:prev, '\<case\>')
 
   elseif l:line =~# '^\s*{' && l:before =~# '^\<data\>'
+    call s:debug_print("data X<CR>{")
     return &shiftwidth
 
-  elseif l:before =~# '^\<module\>'
-    call s:debug_print('module')
+  elseif l:before =~# '\S\+\s*\<where\>'
+    call s:debug_print('next of module where')
+    return 0
+
+  elseif l:line =~# '^\s*\<module\>'
+    call s:debug_print("module")
+    return 0
+
+  elseif l:before =~# '^\s*\<module\>'
+    call s:debug_print('next of module')
     return &shiftwidth
 
   elseif l:before =~# '\<case\>.*\<of\>'
     call s:debug_print('case of')
     return l:indent + &shiftwidth
+
+  elseif l:before =~# '::\s*$'
+    call s:debug_print('next of ::')
+    return &shiftwidth
 
   elseif l:before =~# '\<of\>'
     call s:debug_print('next of "of"')
@@ -102,26 +137,30 @@ function! haskellindent#indentexpr(lnum)
     call s:debug_print('do')
     return match(l:before, '\<do\>') + 3
 
-  elseif l:before =~# '\s*\<where\>\s*$'
+  elseif l:before =~# '=\s*$'
+    let l:in_where = s:in_where(a:lnum)
+    call s:debug_print('=<CR> where level: ' . l:in_where)
+    if l:in_where
+      return l:in_where + &shiftwidth
+    else 
+      return &shiftwidth
+    endif
+
+  elseif l:before =~# '^\s*\<where\>\s*$'
     call s:debug_print('where hoge')
     return l:indent + &shiftwidth / 2
 
-  elseif l:before =~# '\s*\<where\>.*='
-    call s:debug_print('where =')
-    return l:indent + 6 + &shiftwidth / 2
-    
-  elseif l:before =~# '\s*\<where\>'
+  elseif l:before =~# '^\s*\<where\>'
     call s:debug_print('where$')
     return l:indent + 6
 
-  elseif l:before =~# '=\s*$'
-    call s:debug_print('=<CR>')
-    return &shiftwidth
-
-    " ぶら下がりラムダ
-  elseif l:before =~# '=.*->\s*$'
+  elseif l:before =~# '\.*->\s*$'
     call s:debug_print('dropped lambda')
-    return match(l:before, '\<', match(l:before, '='))
+    if s:in_do_notation(a:lnum)
+      return match(l:before, '\<', match(l:before, '=')) + &shiftwidth
+    else 
+      return match(l:before, '\<', match(l:before, '='))
+    endif
 
   elseif l:before =~# '^\<data\>.*='
     call s:debug_print('data =')
@@ -131,19 +170,15 @@ function! haskellindent#indentexpr(lnum)
     call s:debug_print('data')
     return &shiftwidth
 
-  elseif l:line =~# '\s*\<where\>'
+  elseif l:line =~# '^\s*\<where\>'
     call s:debug_print('where')
     return &shiftwidth / 2
 
   endif
 
-  if l:indent
-    call s:debug_print('last indent: ' . l:indent)
-    return l:indent
-  else 
-    call s:debug_print('-1')
-    return -1
-  endif
+  call s:debug_print('no rule')
+  return -1
+
 endfunction
 
 
