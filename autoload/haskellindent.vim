@@ -1,8 +1,3 @@
-" haskellindent
-" Version: 0.0.1
-" Author: 
-" License: 
-
 if exists('g:loaded_haskellindent')
   finish
 endif
@@ -31,7 +26,7 @@ endfunction
 
 
 function! s:debug_print(num)
-  echo 'Rule ' . a:num
+  " echo 'Rule ' . a:num
 endfunction
 
 function! haskellindent#indentexpr(lnum)
