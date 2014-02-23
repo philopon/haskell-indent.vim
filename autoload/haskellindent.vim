@@ -30,10 +30,11 @@ function! s:debug_print(num)
 endfunction
 
 function! haskellindent#indentexpr(lnum)
-  let l:before = getline(a:lnum - 1)
-  let l:prev   = prevnonblank(a:lnum - 1)
-  let l:line   = getline(a:lnum)
-  let l:indent = indent(a:lnum - 1)
+  let l:before   = getline(a:lnum - 1)
+  let l:prevline = prevnonblank(a:lnum - 1)
+  let l:prev     = getline(l:prevline)
+  let l:line     = getline(a:lnum)
+  let l:indent   = indent(a:lnum - 1)
 
   if l:line =~# '^\s*,'
     call s:debug_print('comma')
@@ -77,6 +78,9 @@ function! haskellindent#indentexpr(lnum)
   elseif l:line =~# '^\s*\<of\>'
     call s:debug_print('<CR>of')
     return match(l:prev, '\<case\>')
+
+  elseif l:line =~# '^\s*{' && l:before =~# '^\<data\>'
+    return &shiftwidth
 
   elseif l:before =~# '^\<module\>'
     call s:debug_print('module')
@@ -133,10 +137,11 @@ function! haskellindent#indentexpr(lnum)
 
   endif
 
-  call s:debug_print('last indent: ' . l:indent)
   if l:indent
+    call s:debug_print('last indent: ' . l:indent)
     return l:indent
   else 
+    call s:debug_print('-1')
     return -1
   endif
 endfunction
