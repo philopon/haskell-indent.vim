@@ -113,6 +113,10 @@ function! haskellindent#indentexpr(lnum)
     call s:debug_print("module")
     return 0
 
+  elseif l:prev =~# '^\s*\<let\>.*=\s*$'
+    call s:debug_print('let =<CR>')
+    return match(l:prev, '\<', match(l:prev, '\<let\>') + 3) + &shiftwidth
+
   elseif l:before =~# '^\s*\<module\>'
     call s:debug_print('next of module')
     return &shiftwidth
