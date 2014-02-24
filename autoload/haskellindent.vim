@@ -140,7 +140,7 @@ function! haskellindent#indentexpr(lnum)
   elseif l:before =~# '=\s*$'
     let l:in_where = s:in_where(a:lnum)
     call s:debug_print('=<CR> where level: ' . l:in_where)
-    if l:in_where
+    if l:in_where >= 0
       return l:in_where + &shiftwidth
     else 
       return &shiftwidth
