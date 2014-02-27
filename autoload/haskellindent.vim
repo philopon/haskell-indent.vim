@@ -43,20 +43,29 @@ function! s:in_where(lnum)
   endif
 endfunction
 
+function! s:top_level(lnum)
+  let l:lnum = a:lnum
+  while l:lnum >= 0
+    let l:line = getline(l:lnum)
+    if l:line =~# '^\S'
+      return l:lnum
+    endif
+    let l:lnum -= 1
+  endwhile
+endfunction
+
 function! s:debug_print(num)
-  " echo 'Rule ' . a:num
+  echo 'Rule ' . a:num
 endfunction
 
 function! haskellindent#indentexpr(lnum)
   let l:before   = getline(a:lnum - 1)
-  let l:prevline = prevnonblank(a:lnum - 1)
-  let l:prev     = getline(l:prevline)
   let l:line     = getline(a:lnum)
   let l:indent   = indent(a:lnum - 1)
 
   if l:line =~# '^\s*,'
     call s:debug_print('comma')
-    return match(l:prev, '{\|,\|\[')
+    return match(l:before, '{\|,\|\[')
 
   elseif l:line =~# '^\s*)'
     call s:debug_print('close )')
@@ -66,18 +75,24 @@ function! haskellindent#indentexpr(lnum)
     call s:debug_print('in')
     return match(s:search_back('\<let\>', a:lnum -1)[1], '\<let\>')
 
+  elseif l:line =~# '^\s*\<deriving\>\s\+\<instance\>'
+    call s:debug_print('deriving instance')
+    return 0
+
   elseif l:line =~# '^\s*\(|\|deriving\)'
-    let peq = match(s:search_back('[|=]', a:lnum - 1)[1], '[|=]')
-    call s:debug_print('pipe&deriving: ' . peq)
-    if peq > 0
-      return peq
-    else 
-      return &shiftwidth
+    if getline(s:top_level(a:lnum)) =~# '^\<data\>'
+      let peq = match(s:search_back('[|=]', a:lnum - 1)[1], '[|=]')
+      call s:debug_print('pipe&deriving: ' . peq)
+      if peq > 0
+        return peq
+      else 
+        return &shiftwidth
+      endif
     endif
 
   elseif l:line =~# '^\s*->' 
     call s:debug_print('type ->')
-    return match(l:prev, '::')
+    return match(l:before, '::')
 
   elseif l:line =~# '\<then\>'
     call s:debug_print('then')
@@ -99,23 +114,29 @@ function! haskellindent#indentexpr(lnum)
 
   elseif l:line =~# '^\s*\<of\>'
     call s:debug_print('<CR>of')
-    return match(l:prev, '\<case\>')
+    return match(l:before, '\<case\>')
 
   elseif l:line =~# '^\s*{' && l:before =~# '^\<data\>'
     call s:debug_print("data X<CR>{")
     return &shiftwidth
 
   elseif l:before =~# '\S\+\s*\<where\>'
-    call s:debug_print('next of module where')
-    return 0
+    let l:top = getline(s:top_level(a:lnum))
+    if l:top =~# '^\<module\>'
+      call s:debug_print('next of module where')
+      return 0
+    elseif l:top =~# '^\(\<instance\>\|\<class\>\)'
+      call s:debug_print('next of instance/class where')
+      return &shiftwidth
+    endif
 
   elseif l:line =~# '^\s*\<module\>'
     call s:debug_print("module")
     return 0
 
-  elseif l:prev =~# '^\s*\<let\>.*=\s*$'
+  elseif l:before =~# '^\s*\<let\>.*=\s*$'
     call s:debug_print('let =<CR>')
-    return match(l:prev, '\<', match(l:prev, '\<let\>') + 3) + &shiftwidth
+    return match(l:before, '\<', match(l:before, '\<let\>') + 3) + &shiftwidth
 
   elseif l:before =~# '^\s*\<module\>'
     call s:debug_print('next of module')
