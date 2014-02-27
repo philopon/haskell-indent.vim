@@ -6,11 +6,42 @@ let g:loaded_haskellindent = 1
 let s:save_cpo = &cpo
 set cpo&vim
 
-function! s:drop_comment(string) abort
-  return substitute(substitute(a:string, '\s*--.\{-}$', "", 'g'), '\s*{-.\{-}-}\s*', " ", 'g')
-endfunction
+" content_filetype configuration {{{
+let s:content_filetype_haskell =
+      \     {
+      \       'start': '\[\([a-z_][a-zA-Z0-9_#]*\)|',
+      \       'end':   '|\]', 'filetype': '\1',
+      \     }
 
-function! s:prevnonblank_ (lnum) abort
+let s:has_context_filetype = 0
+silent! let s:has_context_filetype = context_filetype#version()
+
+if s:has_context_filetype
+  if exists('g:context_filetype#filetypes.haskell')
+    let g:context_filetype#filetypes.haskell =
+          \ add(g:context_filetype#filetypes.haskell, s:content_filetype_haskell)
+  else 
+    let g:context_filetype#filetypes.haskell = [s:content_filetype_haskell]
+  endif
+endif
+"}}}
+
+" Haskell language definition. {{{
+let s:find_col_limit = 10
+
+let s:force_toplevels = '^\s*\(\<' . join(['import', 'foreign', 'infix', 'infixl', 'infixr', 'instance', 'deriving instance', 'class', 'module'], '\>\|\<') . '\>\)'
+
+let s:vregex = '[a-z_][a-zA-Z0-9_#]*'
+let s:tregex = '[A-Z][a-zA-Z0-9_#]*'
+let s:symbol = '!#$%&*+./<=>?@\\^|\-~'
+let s:infix  = '\(`[a-zA-Z_][a-zA-Z0-9_#]*`\|[' . s:symbol . ']\+\)'
+"}}}
+
+function! s:drop_comment(string) abort "{{{
+  return substitute(substitute(a:string, '\s*--.\{-}$', "", 'g'), '\s*{-.\{-}-}\s*', " ", 'g')
+endfunction "}}}
+
+function! s:prevnonblank_ (lnum) abort "{{{
   let l:lnum = a:lnum
   while l:lnum > 0
     if s:drop_comment(getline(l:lnum)) !~# '^\s*$'
@@ -19,13 +50,13 @@ function! s:prevnonblank_ (lnum) abort
     let l:lnum -= 1
   endwhile
   return 0
-endfunction
+endfunction "}}}
 
-function! s:debug_print(msg) abort
-  echo a:msg
-endfunction
+function! s:debug_print(msg) abort "{{{
+  " echo a:msg
+endfunction "}}}
 
-function! s:increase_indent(plnum, pline) abort
+function! s:increase_indent(plnum, pline) abort "{{{
   if a:pline =~# '<-\s*\<'
     return match(a:pline, '\<', match(a:pline, '<-') + 2)
   endif
@@ -35,9 +66,9 @@ function! s:increase_indent(plnum, pline) abort
   endif
 
   return indent(a:plnum) + &shiftwidth
-endfunction
+endfunction "}}}
 
-function! s:find_col_previous(regex, lnum, lim) abort
+function! s:find_col_previous(regex, lnum, lim) abort "{{{
   let l:lnum = 0
   while l:lnum < a:lim
     let l:line = getline(a:lnum - l:lnum)
@@ -50,9 +81,9 @@ function! s:find_col_previous(regex, lnum, lim) abort
     let l:lnum += 1
   endwhile
   return -1
-endfunction
+endfunction "}}}
 
-function! s:in_do_condition(lnum) abort
+function! s:in_do_condition(lnum) abort "{{{
   let l:lnum = a:lnum
   while l:lnum > 0
     let l:line = getline(l:lnum)
@@ -64,36 +95,9 @@ function! s:in_do_condition(lnum) abort
     let l:lnum -= 1
   endwhile
   return 0
-endfunction
+endfunction "}}}
 
-let s:content_filetype_haskell =
-      \     {
-      \       'start': '\[\([a-z_][a-zA-Z0-9_#]*\)|',
-      \       'end':   '|\]', 'filetype': '\1',
-      \     }
-
-let s:has_context_filetype = 0
-silent! let s:has_context_filetype = context_filetype#version()
-let g:abcdefg = s:has_context_filetype
-if s:has_context_filetype
-  if exists('g:context_filetype#filetypes.haskell')
-    let g:context_filetype#filetypes.haskell =
-          \ add(g:context_filetype#filetypes.haskell, s:content_filetype_haskell)
-  else 
-    let g:context_filetype#filetypes.haskell = [s:content_filetype_haskell]
-  endif
-endif
-
-let s:find_col_limit = 10
-
-let s:force_toplevels = '^\s*\(\<' . join(['import', 'foreign', 'infix', 'infixl', 'infixr', 'instance', 'deriving instance', 'class', 'module'], '\>\|\<') . '\>\)'
-
-let s:vregex = '[a-z_][a-zA-Z0-9_#]*'
-let s:tregex = '[A-Z][a-zA-Z0-9_#]*'
-let s:symbol = '!#$%&*+./<=>?@\\^|\-~'
-let s:infix  = '\(`[a-zA-Z_][a-zA-Z0-9_#]*`\|[' . s:symbol . ']\+\)'
-
-function! haskellindent#indentexpr(lnum) abort
+function! haskellindent#indentexpr(lnum) abort "{{{
   let l:cline = getline(a:lnum)
   let l:plnum = s:prevnonblank_(a:lnum - 1)
   let l:pline = getline(l:plnum)
@@ -169,7 +173,7 @@ function! haskellindent#indentexpr(lnum) abort
 
   endif
   return -1
-endfunction
+endfunction "}}}
 
 
 let &cpo = s:save_cpo
