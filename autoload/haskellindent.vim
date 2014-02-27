@@ -91,6 +91,8 @@ function! s:in_do_condition(lnum) abort "{{{
       return 1
     elseif l:line =~# '^\S'
       return 0
+    elseif l:line =~# '\\\(\s*' . s:vregex . '\s*\)\+->'
+      return 0
     endif
     let l:lnum -= 1
   endwhile
