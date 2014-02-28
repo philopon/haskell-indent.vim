@@ -53,7 +53,7 @@ function! s:prevnonblank_ (lnum) abort "{{{
 endfunction "}}}
 
 function! s:debug_print(msg) abort "{{{
-  " echo a:msg
+   echo a:msg
 endfunction "}}}
 
 function! s:increase_indent(plnum, pline) abort "{{{
@@ -125,6 +125,10 @@ function! haskellindent#indentexpr(lnum) abort "{{{
 
   elseif l:cline =~# '^\s*' . s:infix && l:pline !~# '^\s*' . s:infix
     call s:debug_print('C: start with infix function.')
+    let l:open = searchpairpos('(', '', ')', 'bnW')[1]
+    if l:open
+      return l:open - 1
+    endif
     return s:increase_indent(l:plnum, l:pline)
 
   elseif l:cline =~# '^\s*\<then\>'
@@ -167,10 +171,6 @@ function! haskellindent#indentexpr(lnum) abort "{{{
 
   elseif l:pline =~# '[^' . s:symbol . ']=\s*$'
     call s:debug_print('N: dropped =.')
-    return s:increase_indent(l:plnum, l:pline)
-
-  elseif l:pline =~# s:infix . '\s*$' && getline(s:prevnonblank_(l:plnum - 1)) !~# s:infix . '\s*$'
-    call s:debug_print('N: dropped infix function')
     return s:increase_indent(l:plnum, l:pline)
 
   endif
