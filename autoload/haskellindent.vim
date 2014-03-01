@@ -157,7 +157,7 @@ function! haskellindent#indentexpr(lnum) abort " {{{
     return g:haskell_indent_where_width
 
   elseif l:cline =~# '^\s*then\>'
-    if s:in_condition('\<do\>', a:lnum)
+    if s:in_condition('\<do\>', a:lnum - 1)
       return s:find_col_previous('\<if\>', a:lnum - 1, 10) + &shiftwidth
     else
       return s:find_col_previous('\<if\>', a:lnum - 1, 10)
@@ -169,12 +169,20 @@ function! haskellindent#indentexpr(lnum) abort " {{{
   elseif l:cline =~# '^\s*in\>'
     return s:find_col_previous('\<let\>', a:lnum - 1, 10)
 
+  elseif l:pline =~# '::' && l:cline =~# '^\s*->'
+    return match(l:pline, '::')
+
   elseif l:cline =~# '^\s*|'
     let l:tllnum = s:top_level_line(a:lnum - 1)
     if getline(l:tllnum) =~# '^data\>'
       return s:find_col_previous('[|=]', a:lnum - 1, 10)
     else
-      return s:find_col_previous('|', a:lnum - 1, 10)
+      let l:pipe = s:find_col_previous('|', a:lnum - 1, 10)
+      if l:pipe <= 0
+        return &shiftwidth
+      else
+        return l:pipe
+      endif
     endif
 
   elseif l:cline =~# '^\s*,'
@@ -183,7 +191,7 @@ function! haskellindent#indentexpr(lnum) abort " {{{
       return l:ppcol - 1
     endif
 
-  elseif l:cline =~# '^\s*\(=\|{\)'
+  elseif l:cline =~# '^\s*\(=\|{ \)'
     return indent(a:lnum - 1) + &shiftwidth
 
   endif

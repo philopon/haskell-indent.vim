@@ -4,7 +4,7 @@ endif
 
 setlocal autoindent
 setlocal indentexpr=haskellindent#indentexpr(v:lnum) 
-setlocal indentkeys=!^F,o,O,0=where,0\|,0=,0{,0,
+setlocal indentkeys=!^F,o,O,0=where,0\|,0=,0{<space>,0,
 setlocal shiftwidth=4
 setlocal softtabstop=4
 
