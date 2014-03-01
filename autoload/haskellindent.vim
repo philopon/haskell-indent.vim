@@ -55,7 +55,7 @@ function! s:prevnonblank_ (lnum) abort "{{{
 endfunction "}}}
 
 function! s:debug_print(msg) abort "{{{
-   echo a:msg
+   " echo a:msg
 endfunction "}}}
 
 function! s:increase_indent(plnum, pline) abort "{{{
@@ -111,7 +111,6 @@ function s:top_level_line(lnum) abort "{{{
   endwhile
 endfunction "}}}
 
-
 function! haskellindent#indentexpr(lnum) abort " {{{
   let l:pline  = s:drop_comment(getline(a:lnum - 1))
 
@@ -122,8 +121,8 @@ function! haskellindent#indentexpr(lnum) abort " {{{
     if l:tlline =~# '^module'
       call s:debug_print('next of module where')
       return 0
-    elseif l:tlline =~# '^data'
-      call s:debug_print('next of GADT where')
+    elseif l:tlline =~# '^\(data\|instance\)'
+      call s:debug_print('next of GADT, instance where')
       return &shiftwidth
     else
       call s:debug_print('next of function where$')
@@ -142,7 +141,6 @@ function! haskellindent#indentexpr(lnum) abort " {{{
 
   elseif l:pline =~# '\<\(do\|of\)\>\s*$' || l:pline =~# '=\s*$'
     let l:letcond = s:in_condition('\<let\>', a:lnum - 1)
-    echo l:letcond
     if l:letcond
       return indent(l:letcond) + 4 + &shiftwidth
     else 
@@ -192,81 +190,6 @@ function! haskellindent#indentexpr(lnum) abort " {{{
 
   return -1
 endfunction "}}}
-
-" function! haskellindent#indentexpr(lnum) abort "{{{
-"   let l:cline = getline(a:lnum)
-"   let l:plnum = s:prevnonblank_(a:lnum - 1)
-"   let l:pline = getline(l:plnum)
-" 
-"   if 0
-" 
-"   elseif s:has_context_filetype && context_filetype#get().filetype != 'haskell'
-"     call s:debug_print('In QuasiQuotes.')
-"     return -1
-" 
-"   elseif l:cline =~# '^\s*->' && l:pline =~# '\(^\s*->\|::\)'
-"     call s:debug_print('C: type arrow')
-"     return match(l:pline, '\(->\|::\)')
-" 
-"   elseif l:cline =~# s:force_toplevels
-"     call s:debug_print('C: reserved top level symbol.')
-"     return 0
-" 
-"   elseif l:cline =~# '^\s*|'
-"     call s:debug('C: pipe align.')
-"     let l:col = s:find_col_previous('\(|\|=\)', a:lnum - 1, s:find_col_limit)
-"     return l:col ? l:col : &shiftwidth
-" 
-"   elseif l:cline =~# '^\s*' . s:infix && l:pline !~# '^\s*' . s:infix
-"     call s:debug_print('C: start with infix function.')
-"     let l:open = searchpairpos('(', '', ')', 'bnW')[1]
-"     if l:open
-"       return l:open - 1
-"     endif
-"     return s:increase_indent(l:plnum, l:pline)
-" 
-"   elseif l:cline =~# '^\s*\<then\>'
-"     call s:debug_print('C: then')
-"     let l:indo = s:in_do_condition(a:lnum - 1) ? &shiftwidth : 0
-"     return s:find_col_previous('\<if\>', a:lnum - 1, s:find_col_limit) + l:indo
-" 
-"   elseif l:cline =~# '^\s*\<else\>'
-"     call s:debug_print('C: else.')
-"     return s:find_col_previous('\<then\>', a:lnum - 1, s:find_col_limit)
-" 
-"   elseif l:cline =~# '^\s*,'
-"     call s:debug_print('C: align comma.')
-"     return s:find_col_previous('[\[,{]', a:lnum - 1, s:find_col_limit)
-" 
-"   elseif l:cline =~# '^\s*where'
-"     call s:debug_print('C: where')
-"     let l:pind = indent(l:plnum)
-"     return indent(l:plnum) - g:haskell_indent_where_width
-" 
-"   elseif l:pline =~# '\<case\>'
-"     call s:debug_print('N: case.')
-"     return indent(l:plnum) + &shiftwidth
-" 
-"   elseif l:pline =~# '^\s*where\s*$'
-"     call s:debug_print('N: where')
-"     return indent(l:plnum) + g:haskell_indent_where_width
-" 
-"   elseif l:pline =~# '\<do\>\s*\<'
-"     call s:debug_print('N: align do.')
-"     return match(l:pline, '\<', match(l:pline, '\<do\>') + 2)
-" 
-"   elseif l:pline =~# '\<do\>\s*$'
-"     call s:debug_print('N: dropped do.')
-"     return s:increase_indent(l:plnum, l:pline)
-" 
-"   elseif l:pline =~# '[^' . s:symbol . ']=\s*$'
-"     call s:debug_print('N: dropped =.')
-"     return s:increase_indent(l:plnum, l:pline)
-" 
-"   endif
-"   return -1
-" endfunction "}}}
-
 
 let &cpo = s:save_cpo
 unlet s:save_cpo
