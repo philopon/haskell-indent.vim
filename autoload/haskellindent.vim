@@ -55,7 +55,7 @@ function! s:prevnonblank_ (lnum) abort "{{{
 endfunction "}}}
 
 function! s:debug_print(msg) abort "{{{
-   " echo a:msg
+   echo a:msg
 endfunction "}}}
 
 function! s:increase_indent(plnum, pline) abort "{{{
@@ -70,14 +70,14 @@ function! s:increase_indent(plnum, pline) abort "{{{
   return indent(a:plnum) + &shiftwidth
 endfunction "}}}
 
-function! s:find_col_previous(regex, lnum, lim) abort "{{{
+function! s:find_col_previous(regex, lnum, top, lim) abort "{{{
   let l:lnum = 0
   while l:lnum < a:lim
     let l:line = getline(a:lnum - l:lnum)
     let l:match = match(l:line, a:regex)
     if l:match >= 0
       return l:match
-    elseif l:line =~# '^\S'
+    elseif l:line =~# '^\s\{' . a:top . '\}\S'
       return 0
     endif
     let l:lnum += 1
@@ -101,11 +101,16 @@ function! s:in_condition(cond, lnum) abort "{{{
   return 0
 endfunction "}}}
 
-function s:top_level_line(lnum) abort "{{{
+function s:top_level(lnum) abort "{{{
   let l:lnum = a:lnum
   while l:lnum > 0
-    if getline(l:lnum) =~# '^\S'
-      return l:lnum
+    let l:line = getline(l:lnum)
+    if l:line =~# '^\S'
+      return [l:lnum, 0]
+    elseif l:line =~# '^\s*where\s*$'
+      return [l:lnum+1, match(getline(l:lnum+1), '\<')]
+    elseif l:line =~# '^\s*where\>'
+      return [l:lnum, match(l:line, '\<', match(l:line, 'where\>') + 6)]
     endif
     let l:lnum -= 1
   endwhile
@@ -116,7 +121,7 @@ function! haskellindent#indentexpr(lnum) abort " {{{
 
   if 0
   elseif l:pline =~# 'where\s*$'
-    let l:tllnum = s:top_level_line(a:lnum - 1)
+    let l:tllnum = s:top_level(a:lnum - 1)[0]
     let l:tlline = getline(l:tllnum)
     if l:tlline =~# '^module'
       call s:debug_print('next of module where')
@@ -158,28 +163,28 @@ function! haskellindent#indentexpr(lnum) abort " {{{
 
   elseif l:cline =~# '^\s*then\>'
     if s:in_condition('\<do\>', a:lnum - 1)
-      return s:find_col_previous('\<if\>', a:lnum - 1, 10) + &shiftwidth
+      return s:find_col_previous('\<if\>', a:lnum - 1, 0, 10) + &shiftwidth
     else
-      return s:find_col_previous('\<if\>', a:lnum - 1, 10)
+      return s:find_col_previous('\<if\>', a:lnum - 1, 0, 10)
     endif
 
   elseif l:cline =~# '^\s*else\>'
-    return s:find_col_previous('\<then\>', a:lnum - 1, 10)
+    return s:find_col_previous('\<then\>', a:lnum - 1, 0, 10)
 
   elseif l:cline =~# '^\s*in\>'
-    return s:find_col_previous('\<let\>', a:lnum - 1, 10)
+    return s:find_col_previous('\<let\>', a:lnum - 1, 0, 10)
 
   elseif l:pline =~# '::' && l:cline =~# '^\s*->'
     return match(l:pline, '::')
 
   elseif l:cline =~# '^\s*|'
-    let l:tllnum = s:top_level_line(a:lnum - 1)
+    let [l:tllnum, l:tlcol] = s:top_level(a:lnum - 1)
     if getline(l:tllnum) =~# '^data\>'
-      return s:find_col_previous('[|=]', a:lnum - 1, 10)
+      return s:find_col_previous('[|=]', a:lnum - 1, 0, 10)
     else
-      let l:pipe = s:find_col_previous('|', a:lnum - 1, 10)
+      let l:pipe = s:find_col_previous('|', a:lnum - 1, l:tlcol, 10)
       if l:pipe <= 0
-        return &shiftwidth
+        return l:tlcol + &shiftwidth
       else
         return l:pipe
       endif
