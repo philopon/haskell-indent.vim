@@ -111,6 +111,8 @@ function s:top_level(lnum) abort "{{{
       return [l:lnum+1, match(getline(l:lnum+1), '\<')]
     elseif l:line =~# '^\s*where\>'
       return [l:lnum, match(l:line, '\<', match(l:line, 'where\>') + 6)]
+    elseif l:line =~# '\<case\>.*\<of\>\s*$'
+      return  [l:lnum+1, match(getline(l:lnum+1), '\<')]
     endif
     let l:lnum -= 1
   endwhile
@@ -136,7 +138,8 @@ function! haskellindent#indentexpr(lnum) abort " {{{
 
   elseif l:pline =~# '^\s*where\s\+' . s:vregex
     call s:debug_print('next of function where hoge.')
-    return match(l:pline, '\<', match(l:pline, 'where') + 6)
+    let l:top = match(l:pline, '\<', match(l:pline, 'where') + 6)
+    return indent(a:lnum) >= l:top ? -1 : l:top
 
   elseif l:pline =~# '\<case\>.*\<of\>'
     return indent(a:lnum - 1) + &shiftwidth
@@ -174,7 +177,7 @@ function! haskellindent#indentexpr(lnum) abort " {{{
   elseif l:cline =~# '^\s*in\>'
     return s:find_col_previous('\<let\>', a:lnum - 1, 0, 10)
 
-  elseif l:pline =~# '::' && l:cline =~# '^\s*->'
+  elseif l:pline =~# '::' && l:cline =~# '^\s*\(->\|=>\)'
     return match(l:pline, '::')
 
   elseif l:cline =~# '^\s*|'
