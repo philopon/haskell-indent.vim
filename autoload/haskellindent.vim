@@ -85,15 +85,15 @@ function! s:find_col_previous(regex, lnum, top, lim) abort "{{{
   return -1
 endfunction "}}}
 
-function! s:in_condition(cond, lnum) abort "{{{
+function! s:in_condition(cond, lnum, top) abort "{{{
   let l:lnum = a:lnum
   while l:lnum > 0
     let l:line = getline(l:lnum)
     if l:line =~# a:cond
       return l:lnum
-    elseif l:line =~# '^\S'
+    elseif l:line =~# '^\s\{' . a:top . '\}\S'
       return 0
-    elseif l:line =~# '\\\(\s*' . s:vregex . '\s*\)\+->'
+    elseif l:line =~# '\<do\>'
       return 0
     endif
     let l:lnum -= 1
@@ -103,6 +103,7 @@ endfunction "}}}
 
 function s:top_level(lnum) abort "{{{
   let l:lnum = a:lnum
+  let l:clevel = indent(a:lnum)
   while l:lnum > 0
     let l:line = getline(l:lnum)
     if l:line =~# '^\S'
@@ -112,7 +113,10 @@ function s:top_level(lnum) abort "{{{
     elseif l:line =~# '^\s*where\>'
       return [l:lnum, match(l:line, '\<', match(l:line, 'where\>') + 6)]
     elseif l:line =~# '\<case\>.*\<of\>\s*$'
-      return  [l:lnum+1, match(getline(l:lnum+1), '\<')]
+      let l:level =  match(getline(l:lnum+1), '\<')
+      if l:clevel < l:level
+        return  [l:lnum+1, l:level]
+      endif
     endif
     let l:lnum -= 1
   endwhile
@@ -142,17 +146,28 @@ function! haskellindent#indentexpr(lnum) abort " {{{
     return indent(a:lnum) >= l:top ? -1 : l:top
 
   elseif l:pline =~# '\<case\>.*\<of\>'
+    call s:debug_print('next of case of.')
     return indent(a:lnum - 1) + &shiftwidth
 
   elseif l:pline =~# '^module'
+    call s:debug_print('next of module.')
     return &shiftwidth
 
   elseif l:pline =~# '\<\(do\|of\)\>\s*$' || l:pline =~# '=\s*$'
-    let l:letcond = s:in_condition('\<let\>', a:lnum - 1)
+    call s:debug_print('next of do/of/=.')
+    let l:letcond = s:in_condition('\<let\>', a:lnum - 1, s:top_level(a:lnum)[1])
     if l:letcond
       return indent(l:letcond) + 4 + &shiftwidth
     else 
       return indent(a:lnum - 1) + &shiftwidth
+    endif
+
+  elseif l:pline =~# '\<let\>'
+    call js:debug_print('next of let.')
+    if !s:in_condition('\<do\>', a:lnum, 0)
+      let l:letcond = match(l:pline, '\<', match(l:pline, '\<let\>') + 4)
+      let l:ind     = indent(a:lnum)
+      return l:ind > l:letcond ? l:ind : l:letcond
     endif
 
   endif
@@ -162,25 +177,31 @@ function! haskellindent#indentexpr(lnum) abort " {{{
   let l:cline  = getline(a:lnum)
   if 0
   elseif l:cline =~# '^\s*where'
+    call s:debug_print('where.')
     return g:haskell_indent_where_width
 
   elseif l:cline =~# '^\s*then\>'
-    if s:in_condition('\<do\>', a:lnum - 1)
+    call s:debug_print('then.')
+    if s:in_condition('\<do\>', a:lnum - 1, 0)
       return s:find_col_previous('\<if\>', a:lnum - 1, 0, 10) + &shiftwidth
     else
       return s:find_col_previous('\<if\>', a:lnum - 1, 0, 10)
     endif
 
   elseif l:cline =~# '^\s*else\>'
+    call s:debug_print('else.')
     return s:find_col_previous('\<then\>', a:lnum - 1, 0, 10)
 
   elseif l:cline =~# '^\s*in\>'
+    call s:debug_print('in.')
     return s:find_col_previous('\<let\>', a:lnum - 1, 0, 10)
 
   elseif l:pline =~# '::' && l:cline =~# '^\s*\(->\|=>\)'
+    call s:debug_print('->, =>.')
     return match(l:pline, '::')
 
   elseif l:cline =~# '^\s*|'
+    call s:debug_print('|')
     let [l:tllnum, l:tlcol] = s:top_level(a:lnum - 1)
     if getline(l:tllnum) =~# '^data\>'
       return s:find_col_previous('[|=]', a:lnum - 1, 0, 10)
@@ -194,12 +215,17 @@ function! haskellindent#indentexpr(lnum) abort " {{{
     endif
 
   elseif l:cline =~# '^\s*,'
+    call s:debug_print(',')
     let [l:ppline, l:ppcol] = searchpairpos('\[', '', '\]', 'bnW')
     if l:ppline
+      return l:ppcol - 1
+    else 
+      let [l:ppline, l:ppcol] = searchpairpos('{', '', '}', 'bnW')
       return l:ppcol - 1
     endif
 
   elseif l:cline =~# '^\s*\(=\|{ \)'
+    call s:debug_print('=,{')
     return indent(a:lnum - 1) + &shiftwidth
 
   endif
