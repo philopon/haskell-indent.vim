@@ -55,7 +55,7 @@ function! s:prevnonblank_ (lnum) abort "{{{
 endfunction "}}}
 
 function! s:debug_print(msg) abort "{{{
-   echo a:msg
+   " echo a:msg
 endfunction "}}}
 
 function! s:increase_indent(plnum, pline) abort "{{{
@@ -132,8 +132,8 @@ function! haskellindent#indentexpr(lnum) abort " {{{
     if l:tlline =~# '^module'
       call s:debug_print('next of module where')
       return 0
-    elseif l:tlline =~# '^\(data\|instance\)'
-      call s:debug_print('next of GADT, instance where')
+    elseif l:tlline =~# '^\(data\|instance\|class\)'
+      call s:debug_print('next of GADT, class, instance where')
       return &shiftwidth
     else
       call s:debug_print('next of function where$')
@@ -163,11 +163,11 @@ function! haskellindent#indentexpr(lnum) abort " {{{
     endif
 
   elseif l:pline =~# '\<let\>'
-    call js:debug_print('next of let.')
+    call s:debug_print('next of let.')
     if !s:in_condition('\<do\>', a:lnum, 0)
-      let l:letcond = match(l:pline, '\<', match(l:pline, '\<let\>') + 4)
+      let l:letcond = match(l:pline, '\(\<\|[(\[]\)', match(l:pline, '\<let\>') + 4)
       let l:ind     = indent(a:lnum)
-      return l:ind > l:letcond ? l:ind : l:letcond
+      return max([l:ind, l:letcond])
     endif
 
   endif
@@ -217,7 +217,8 @@ function! haskellindent#indentexpr(lnum) abort " {{{
   elseif l:cline =~# '^\s*,'
     call s:debug_print(',')
     let [l:ppline, l:ppcol] = searchpairpos('\[', '', '\]', 'bnW')
-    if l:ppline
+
+    if l:ppline && l:ppline != a:lnum
       return l:ppcol - 1
     else 
       let [l:ppline, l:ppcol] = searchpairpos('{', '', '}', 'bnW')
@@ -230,6 +231,7 @@ function! haskellindent#indentexpr(lnum) abort " {{{
 
   endif
 
+  call s:debug_print('no rule')
   return -1
 endfunction "}}}
 
